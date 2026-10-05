@@ -349,6 +349,7 @@ footer{padding-block:30px 60px;color:var(--muted);font-size:13px;border-top:1px 
       <div class="flex small"><label for="rzSel" class="muted">Zastupitel</label><select id="rzSel"></select></div></div>
       <div class="tw tall"><table id="rzTable"></table></div></div>
     <div class="card span2"><h3>Komunální volby</h3><p class="sub">volební účast a rozdělení mandátů</p><div class="grid g2"><div><div class="legend" id="lg-turn"></div><div class="chart" id="ch-turn"></div></div><div id="volby"></div></div></div>
+    <div class="card span2"><h3>Starší volební období 1994–2010</h3><p class="sub">zvolení zastupitelé a náhradníci podle volby.cz; zápisy ze zasedání z těchto let nejsou zveřejněné</p><div id="starsi" class="grid g2"></div></div>
     <div class="card span2"><h3>Záznamy na YouTube</h3><p class="sub" id="yt-sub"></p><div class="grid g2"><div><div class="chart" id="ch-yt"></div></div><div><div class="chart" id="ch-ytv"></div></div></div></div>
     <div class="card span2"><h3>Zasedání ve vybraném období</h3><p class="sub">přítomnost podle zápisu; témata zkrácena; odkaz na zápis a záznam</p><div class="tw tall"><table id="zasTable"></table></div></div>
   </div>
@@ -863,6 +864,7 @@ function renderZast() {
   } else $('#absence').replaceChildren();
   // hlasování po zastupitelích
   renderHlasovani(tKey);
+  renderStarsi();
   // slozeni
   const T = D.terms[tKey]; const sl = $('#slozeni'); sl.replaceChildren();
   const SZ = (D.slozeni || {})[tKey];
@@ -957,6 +959,23 @@ function renderRozdelena(tKey) {
         el('span', { class: 'pill ' + (r.prijato ? 'ok' : 'bad'), text: r.prijato ? 'přijato' : 'nepřijato' }),
         nm(r.jmena.proti) + (r.proti && r.jmena.proti.length < r.proti ? ' (část nepřiřazena)' : ''), nm(r.jmena.zdrzel) + (r.zdrzel && r.jmena.zdrzel.length < r.zdrzel ? ' (část nepřiřazena)' : ''), link(r.url, 'zápis')]
   })));
+}
+function renderStarsi() {
+  const box = $('#starsi'); if (!box || box.dataset.done) return; box.dataset.done = 1;
+  [['1994-1998', 'Volby 1994'], ['1998-2002', 'Volby 1998'], ['2002-2006', 'Volby 2002'], ['2006-2010', 'Volby 2006']].forEach(([t, h]) => {
+    const SZ = (D.slozeni || {})[t]; if (!SZ) return;
+    const E = D.demo.elections[SZ.volby] || {};
+    const c = el('div', { class: 'small', style: 'border:1px solid var(--line);border-radius:var(--r);padding:10px 12px' });
+    c.append(el('div', {}, el('b', { text: `${h} · období ${t.replace('-', '–')}` }), E.turnout != null ? el('span', { class: 'muted', text: ` · účast ${pct(E.turnout)}` }) : null));
+    const st = SZ.starosta;
+    if (st) c.append(el('div', { style: 'margin:4px 0' }, 'Starosta: ', el('b', { text: st.jmeno || 'nezjištěno' }), el('span', { class: 'muted', text: ` (${st.zdroj})` })));
+    SZ.kandidatky.filter(k => k.zvoleni.length).forEach(k => {
+      c.append(el('div', { style: 'margin-top:6px' }, el('span', { class: 'ink2', text: k.nazev + ': ' }), k.zvoleni.map(z => `${z.jmeno} (${NF.format(z.hlasy)})`).join(', ')));
+      if (k.nahradnici.length) c.append(el('details', {}, el('summary', { text: `Náhradníci (${k.nahradnici.length})` }), el('div', { class: 'ink2', text: k.nahradnici.sort((a, b) => a.poradi - b.poradi).map(n => `${n.poradi}. ${n.jmeno} (${NF.format(n.hlasy)})`).join(', ') })));
+    });
+    c.append(el('div', { class: 'muted', style: 'margin-top:6px' }, 'Zdroj: ', link(SZ.zdroj, 'volby.cz')));
+    box.append(c);
+  });
 }
 function memberNames(tKey) {
   const T = D.terms[tKey]; if (!T) return [];
