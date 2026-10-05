@@ -337,6 +337,10 @@ footer{padding-block:30px 60px;color:var(--muted);font-size:13px;border-top:1px 
     <div class="card"><h3>Průměrná účast zastupitelů</h3><p class="sub">% přítomných z 9, podle zápisů</p><div class="chart" id="ch-ucast"></div></div>
     <div class="card"><h3>Absence podle zastupitelů</h3><p class="sub" id="abs-sub"></p><div id="absence"></div></div>
     <div class="card"><h3>Složení zastupitelstva</h3><p class="sub" id="slozeni-sub"></p><div id="slozeni" class="small"></div></div>
+    <div class="card span2"><h3>Jak hlasovali zastupitelé</h3><p class="sub" id="hl-sub"></p><div class="legend" id="lg-hl"></div><div class="tw"><table id="hlTable"></table></div></div>
+    <div class="card span2"><div class="flex between"><div><h3>Hlasování, která nebyla jednomyslná</h3><p class="sub" id="rz-sub"></p></div>
+      <div class="flex small"><label for="rzSel" class="muted">Zastupitel</label><select id="rzSel"></select></div></div>
+      <div class="tw tall"><table id="rzTable"></table></div></div>
     <div class="card span2"><h3>Komunální volby</h3><p class="sub">volební účast a rozdělení mandátů</p><div class="grid g2"><div><div class="legend" id="lg-turn"></div><div class="chart" id="ch-turn"></div></div><div id="volby"></div></div></div>
     <div class="card span2"><h3>Záznamy na YouTube</h3><p class="sub" id="yt-sub"></p><div class="grid g2"><div><div class="chart" id="ch-yt"></div></div><div><div class="chart" id="ch-ytv"></div></div></div></div>
     <div class="card span2"><h3>Zasedání ve vybraném období</h3><p class="sub">přítomnost podle zápisu; témata zkrácena; odkaz na zápis a záznam</p><div class="tw tall"><table id="zasTable"></table></div></div>
@@ -845,6 +849,8 @@ function renderZast() {
     const rows = names.map(n => ({ l: n + (partC[n] ? ` (${partC[n]}× jen část)` : ''), v: absC[n] || 0, t: (absC[n] || 0) + (presC[n] || 0) })).sort((a, b) => b.v - a.v || a.l.localeCompare(b.l, 'cs'));
     hbars('absence', rows, { fmt: (v, r0) => v ? `${v}× z ${r0.t}` : 'bez absence', color: '--s2', max: Math.max(...rows.map(r => r.t)) });
   } else $('#absence').replaceChildren();
+  // hlasování po zastupitelích
+  renderHlasovani(tKey);
   // slozeni
   const T = D.terms[tKey]; const sl = $('#slozeni'); sl.replaceChildren();
   $('#slozeni-sub').textContent = 'Období ' + tKey.replace('-', '–');
@@ -887,6 +893,45 @@ function renderZast() {
     return { c: [czDate(z.d), z.c, pc, z.u != null ? String(z.u) : '–', (z.a || []).join(', ') || '–', (z.t || (v && v.topics) || []).slice(0, 5).join(' · ') || '–', el('span', { class: 'flex', style: 'gap:8px' }, link(z.url, 'zápis'), v ? link('https://www.youtube.com/watch?v=' + v.id, 'video') : null)] };
   });
   table('zasTable', ['Datum', 'Č.', 'Přítomno (ze zápisu)', { t: 'Usn.', r: 1 }, 'Chyběli', 'Hlavní body', 'Odkazy'], rows);
+}
+function renderHlasovani(tKey) {
+  const H = (D.hlasovani || {})[tKey];
+  const sub = $('#hl-sub'), t = $('#hlTable');
+  if (!H) { sub.textContent = 'Pro toto období nejsou zápisy s hlasováním.'; t.replaceChildren(); $('#rzTable').replaceChildren(); $('#rz-sub').textContent = ''; return; }
+  const usn = D.zasedani.filter(z => { const TT = TERMS.find(x => x.term === tKey); return TT && z.d >= TT.d0 && z.d <= TT.d1; }).reduce((a, z) => a + (z.u || 0), 0);
+  sub.textContent = `${tKey.replace('-', '–')}: ${H.hlasovani} hlasování ze zápisů${usn ? ` (zápisy uvádějí ${usn} usnesení)` : ''}. Hlas je přiřazen jménu jen tam, kde to zápis umožňuje: jmenovitým seznamem, nebo „všichni přítomní“ při známé docházce. Jinak je veden jako nepřiřazený. ${H.nejista} hlasování s nesouhlasícím součtem hlasů jsou vyřazena.${tKey === '2010-2014' ? ' Zápisy jsou zveřejněné až od roku 2012.' : ''}`;
+  legend('lg-hl', [{ label: 'pro', color: '--s3' }, { label: 'proti', color: '--s8' }, { label: 'zdržel/a se', color: '--s4' }, { label: 'nepřiřazeno', color: '--line-2' }]);
+  const rows = Object.entries(H.clenove).map(([n, m]) => ({ n, ...m, tot: m.pro + m.proti + m.zdrzel + m.neprirazeno })).sort((a, b) => (b.proti + b.zdrzel) - (a.proti + a.zdrzel) || a.n.localeCompare(b.n, 'cs'));
+  t.replaceChildren();
+  const hr = el('tr'); ['Zastupitel/ka', 'Hlasování, kde byl/a přítomen/a', 'Pro', 'Proti', 'Zdržel/a se', 'Nepřiřazeno', 'Rozložení'].forEach((h, i) => hr.append(el('th', { class: i && i < 6 ? 'r' : '', text: h }))); t.append(el('thead', {}, hr));
+  const tb = el('tbody');
+  rows.forEach(r => {
+    const bar = el('div', { style: 'display:flex;height:10px;border-radius:3px;overflow:hidden;min-width:140px;gap:1px' });
+    [['pro', '--s3'], ['proti', '--s8'], ['zdrzel', '--s4'], ['neprirazeno', '--line-2']].forEach(([k, c]) => { if (r[k]) { const sp = el('span', { title: k + ': ' + r[k] }); sp.style.flex = r[k]; sp.style.background = css(c); bar.append(sp); } });
+    const pc = v => r.tot ? ` (${nf0.format(v / r.tot * 100)} %)` : '';
+    const row = el('tr', { style: 'cursor:pointer', title: 'Zobrazit rozdělená hlasování' }, el('td', { text: r.n }), el('td', { class: 'r', text: NF.format(r.tot) }), el('td', { class: 'r', text: NF.format(r.pro) + pc(r.pro) }), el('td', { class: 'r', text: NF.format(r.proti) + pc(r.proti) }), el('td', { class: 'r', text: NF.format(r.zdrzel) + pc(r.zdrzel) }), el('td', { class: 'r', text: NF.format(r.neprirazeno) }), el('td', {}, bar));
+    row.addEventListener('click', () => { $('#rzSel').value = r.n; renderRozdelena(tKey); document.getElementById('rzTable').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+    tb.append(row);
+  });
+  t.append(tb);
+  const sel = $('#rzSel'); const keep = sel.value;
+  sel.replaceChildren(el('option', { value: '', text: 'všichni' }), ...rows.map(r => el('option', { value: r.n, text: r.n })));
+  if (rows.some(r => r.n === keep)) sel.value = keep;
+  sel.onchange = () => renderRozdelena(tKey);
+  renderRozdelena(tKey);
+}
+function renderRozdelena(tKey) {
+  const H = (D.hlasovani || {})[tKey]; if (!H) return;
+  const who = $('#rzSel').value;
+  const list = H.rozdelena.filter(r => !who || r.jmena.proti.includes(who) || r.jmena.zdrzel.includes(who)).slice().sort((a, b) => (b.d || '').localeCompare(a.d || ''));
+  $('#rz-sub').textContent = `${H.rozdelena.length} hlasování s alespoň jedním hlasem proti nebo zdržením se${who ? `; zobrazena ta, kde ${who} hlasoval/a proti nebo se zdržel/a (${list.length})` : ''}`;
+  const nm = a => a && a.length ? a.join(', ') : '–';
+  table('rzTable', ['Datum', 'Usnesení', 'Předmět', { t: 'Pro–proti–zdržel', r: 1 }, 'Výsledek', 'Proti', 'Zdrželi se', 'Zápis'], list.map(r => ({
+    _cls: who && r.jmena.proti.includes(who) ? '' : '',
+    c: [czDate(r.d), (r.lab || '').replace('usn ', '').replace('bod ', 'bod '), r.predmet || 'viz zápis', `${r.pro ?? '?'}–${r.proti}–${r.zdrzel}`,
+        el('span', { class: 'pill ' + (r.prijato ? 'ok' : 'bad'), text: r.prijato ? 'přijato' : 'nepřijato' }),
+        nm(r.jmena.proti) + (r.proti && r.jmena.proti.length < r.proti ? ' (část nepřiřazena)' : ''), nm(r.jmena.zdrzel) + (r.zdrzel && r.jmena.zdrzel.length < r.zdrzel ? ' (část nepřiřazena)' : ''), link(r.url, 'zápis')]
+  })));
 }
 function memberNames(tKey) {
   const T = D.terms[tKey]; if (!T) return [];
