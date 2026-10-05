@@ -71,6 +71,8 @@ nav.sections a.on{background:var(--ink);color:var(--bg)}
 select,input[type=range]{font:inherit}
 select{background:var(--surface);color:var(--ink);border:1px solid var(--line-2);border-radius:6px;padding:5px 6px;font-size:13px}
 .plabel{font-size:13px;color:var(--muted);margin-left:auto}
+.termbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 16px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.termbar-l{font-family:var(--f-display);font-weight:700;font-stretch:90%;font-size:15px}
 @media (max-width:760px){.plabel{display:none}}
 
 /* hero */
@@ -330,6 +332,11 @@ footer{padding-block:30px 60px;color:var(--muted);font-size:13px;border-top:1px 
 <section class="sec" id="zastupitelstvo"><div class="wrap">
   <div class="sec-head"><div><div class="eyebrow">zápisy ZO 2012–2026 · YouTube · volby.cz</div><h2>Zastupitelstvo</h2>
   <p>Docházka podle zápisů, záznamy zasedání na YouTube kanálu obce a výsledky komunálních voleb. Zastupitelstvo má 9 členů.</p></div></div>
+  <div class="termbar" role="group" aria-labelledby="zt-lbl">
+    <span id="zt-lbl" class="termbar-l">Volební období</span>
+    <div class="seg" id="zt-seg"></div>
+    <span class="small muted" id="zt-note"></span>
+  </div>
   <div id="zkpis" class="kpis"></div>
   <div style="height:16px"></div>
   <div class="grid g2">
@@ -413,7 +420,7 @@ const TERMS = [
   { k: 't2022', label: '2022–2026', from: 2023, to: 2026, term: '2022-2026', elect: '2022', d0: '2022-09-24', d1: '2026-10-09' },
 ];
 const PERIODS = [{ k: 'all', label: 'Celá historie' }, ...TERMS.slice(1), { k: 'custom', label: 'Vlastní' }];
-const S = { p: 'all', from: 2010, to: 2026 };
+const S = { p: 'all', from: 2010, to: 2026, zt: '2022-2026' };
 try { const s = JSON.parse(localStorage.getItem('tk-period') || 'null'); if (s && s.p) Object.assign(S, s); } catch (e) { }
 function range() {
   if (S.p === 'all') return { from: 1869, to: 2028, label: 'celá historie', all: true };
@@ -838,13 +845,18 @@ function renderZast() {
   barChart('ch-zas', { xs: yrs, series: [{ label: 'Zasedání', color: '--s1', vals: yrs.map(y => D.zasedani.filter(z => yearOf(z.d) === y).length), scale: 1, fmt: v => NF.format(v) }], scale: 1, hl, height: 200 });
   barChart('ch-ucast', { xs: yrs, series: [{ label: 'Účast', color: '--s3', scale: 1, fmt: v => nf1.format(v) + ' %', vals: yrs.map(y => { const q = D.zasedani.filter(z => yearOf(z.d) === y && z.p != null); return q.length ? q.reduce((a, z) => a + z.p / z.n, 0) / q.length * 100 : null; }) }], hl, height: 200, yFmt: v => v + ' %' });
   // absence per term – spočteno z ověřených jmenných seznamů v zápisech
-  const tKey = R.term ? R.term : '2022-2026';
+  if (R.term) S.zt = R.term;
+  const tKey = S.zt || '2022-2026';
+  const zseg = $('#zt-seg'); zseg.replaceChildren();
+  TERMS.slice(1).forEach(t => { const btn = el('button', { type: 'button', 'aria-pressed': t.term === tKey ? 'true' : 'false', text: t.label + (t.k === 't2022' ? ' (nyní)' : '') });
+    btn.addEventListener('click', () => { S.zt = t.term; if (range().term) S.p = t.k; save(); renderAll(); }); zseg.append(btn); });
+  $('#zt-note').textContent = R.term ? 'Shoduje se s obdobím vybraným nahoře.' : 'Platí pro absence, složení zastupitelstva, hlasování a volby níže. Počty zasedání, grafy po letech a tabulka zasedání ukazují ' + R.label + '.';
   const TT = TERMS.find(t => t.term === tKey);
   const zt = D.zasedani.filter(z => TT && z.d >= TT.d0 && z.d <= TT.d1 && z.p != null);
   const absC = {}, presC = {}, partC = {};
   zt.forEach(z => { (z.a || []).forEach(n => absC[n] = (absC[n] || 0) + 1); (z.pn || []).forEach(n => presC[n] = (presC[n] || 0) + 1); (z.part || []).forEach(n => partC[n] = (partC[n] || 0) + 1); });
   const names = [...new Set([...Object.keys(absC), ...Object.keys(presC)])];
-  $('#abs-sub').textContent = zt.length ? `${tKey.replace('-', '–')}: absence na ${zt.length} zasedáních se jmenným seznamem přítomných${R.term ? '' : ' (současné období; jiné vyberete přepínačem nahoře)'}. Pozdní příchod nebo dřívější odchod se počítá jako účast.` : `Pro období ${tKey.replace('-', '–')} nejsou zápisy s docházkou.`;
+  $('#abs-sub').textContent = zt.length ? `${tKey.replace('-', '–')}: absence na ${zt.length} zasedáních se jmenným seznamem přítomných. Pozdní příchod nebo dřívější odchod se počítá jako účast.` : `Pro období ${tKey.replace('-', '–')} nejsou zápisy s docházkou.`;
   if (zt.length) {
     const rows = names.map(n => ({ l: n + (partC[n] ? ` (${partC[n]}× jen část)` : ''), v: absC[n] || 0, t: (absC[n] || 0) + (presC[n] || 0) })).sort((a, b) => b.v - a.v || a.l.localeCompare(b.l, 'cs'));
     hbars('absence', rows, { fmt: (v, r0) => v ? `${v}× z ${r0.t}` : 'bez absence', color: '--s2', max: Math.max(...rows.map(r => r.t)) });
@@ -881,8 +893,9 @@ function renderZast() {
   const toPts = o => o ? Object.entries(o).map(([k, v]) => [+String(k).slice(0, 4), typeof v === 'object' ? (v.turnout ?? v.ucast ?? v.kolo1 ?? null) : v]).filter(p => p[1] != null && !isNaN(p[0])) : [];
   const sn = toPts(ot.snemovna); if (sn.length) ser.push({ label: 'Sněmovna', color: '--s2', pts: sn, scale: 1, fmt: v => pct(v), dots: true });
   legend('lg-turn', ser.map(s => ({ label: s.label, color: s.color, line: true })));
-  lineChart('ch-turn', { series: ser, scale: 1, yMin: 0, height: 220, yFmt: v => v + ' %', hl: R.term ? { from: +R.elect, to: +R.elect } : null });
-  const ek = R.term ? R.elect : '2022'; const E = D.demo.elections[ek]; const vb = $('#volby'); vb.replaceChildren();
+  const ek = (TERMS.find(t => t.term === tKey) || {}).elect || '2022';
+  lineChart('ch-turn', { series: ser, scale: 1, yMin: 0, height: 220, yFmt: v => v + ' %', hl: { from: +ek, to: +ek } });
+  const E = D.demo.elections[ek]; const vb = $('#volby'); vb.replaceChildren();
   if (E) {
     vb.append(el('p', { class: 'small' }, el('b', { text: `Volby ${ek}` }), ` · účast ${pct(E.turnout)}, voličů ${NF.format(E.voters)}`));
     if (E.lists.length) {
