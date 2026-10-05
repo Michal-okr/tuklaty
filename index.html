@@ -925,7 +925,7 @@ function renderZast() {
     const pp = z.p != null ? `${z.p}/${z.n}` : '–';
     const pill = el('span', { class: 'pill ' + (z.p == null ? '' : z.p === z.n ? 'ok' : z.p <= 5 ? 'bad' : 'plan'), text: pp, title: [z.src, z.pozn].filter(Boolean).join(' – ') });
     const pc = el('div', {}, pill); if (z.part) pc.append(el('div', { class: 'small muted', text: 'část: ' + z.part.join(', ') })); if (z.pozn) pc.append(el('div', { class: 'small muted', text: z.pozn }));
-    return { c: [czDate(z.d), z.c, pc, z.u != null ? String(z.u) : '–', (z.a || []).join(', ') || '–', (z.t || (v && v.topics) || []).slice(0, 5).join(' · ') || '–', el('span', { class: 'flex', style: 'gap:8px' }, link(z.url, 'zápis'), v ? link('https://www.youtube.com/watch?v=' + v.id, 'video') : null)] };
+    return { c: [czDate(z.d), z.c, pc, z.u != null ? String(z.u) : '–', (z.a || []).join(', ') || '–', (z.t || (v && v.topics) || []).slice(0, 5).join(' · ') || '–', el('span', { class: 'flex', style: 'gap:8px' }, link(z.url, /pozvanka/.test(z.url || '') ? 'pozvánka' : 'zápis'), v ? link('https://www.youtube.com/watch?v=' + v.id, 'video') : null)] };
   });
   table('zasTable', ['Datum', 'Č.', 'Přítomno (ze zápisu)', { t: 'Usn.', r: 1 }, 'Chyběli', 'Hlavní body', 'Odkazy'], rows);
 }
@@ -1087,7 +1087,7 @@ function renderLandStats() {
   box.append(el('p', { class: 'small muted', text: 'Plochy a ceny jen tam, kde je uvádí usnesení. Ve věcných břemenech jde většinou o kabely ČEZ Distribuce přes obecní pozemky.' }));
   const rows = tx.slice().sort((a, b) => (b.d || '').localeCompare(a.d || '')).map(t => ({
     _on: () => { const g = (t.par || []).find(p => p.g); if (g) { location.hash = 'mapa'; setYear(yearOf(t.d)); zoomParcel(g.g); } },
-    c: [czDate(t.d), t.us || '–', el('span', { class: 'pill ' + (t.ok === false ? 'bad' : t.smer === 'out' ? 'plan' : t.smer === 'in' ? 'run' : ''), text: t.typ + (t.ok === false ? ' (zamítnuto)' : '') }), (t.par || []).map(p => `${p.p} (${p.ku})`).join(', ') || '–', t.m2 ? NF.format(t.m2) + ' m²' : '–', t.cena ? kc(t.cena) : '–', t.kdo || '–', t.url ? link(t.url, 'zápis') : (t.conf === 'videozáznam' ? 'videozáznam ZO 7/2026 (zápis zatím není)' : '–')]
+    c: [czDate(t.d), t.us || '–', el('span', { class: 'pill ' + (t.ok === false ? 'bad' : t.smer === 'out' ? 'plan' : t.smer === 'in' ? 'run' : ''), text: t.typ + (t.ok === false ? ' (zamítnuto)' : '') }), (t.par || []).map(p => `${p.p} (${p.ku})`).join(', ') || '–', t.m2 ? NF.format(t.m2) + ' m²' : '–', t.cena ? kc(t.cena) : '–', t.kdo || '–', t.url ? link(t.url, t.conf === 'videozáznam' ? 'záznam (YouTube)' : 'zápis') : '–']
   }));
   table('txTable', ['Datum', 'Usnesení', 'Typ', 'Parcely', { t: 'Výměra', r: 1 }, { t: 'Cena', r: 1 }, 'Protistrana', 'Zdroj'], rows);
 }
@@ -1199,7 +1199,7 @@ function parcelPopup(f, ll) {
   const p = f.properties; const tx = D.land.filter(t => (t.par || []).some(q => q.g === p.id));
   const own = D.owned.ids.includes(p.id) ? 'ano, LV 10001 (ověřeno)' : p.lv ? 'ne, LV ' + p.lv : 'neověřeno';
   let h = `<h4>Parcela ${esc(p.p)}</h4><div>k. ú. ${esc(p.ku)} · ${esc(p.druh || '')}${p.vyuziti ? ' / ' + esc(p.vyuziti) : ''}</div><div>výměra ${NF.format(p.vymera || 0)} m²</div><div>obecní: ${own}</div>`;
-  if (tx.length) h += '<div style="margin-top:6px"><b>Usnesení:</b><ul style="padding-left:16px;margin:4px 0">' + tx.map(t => `<li>${czDate(t.d)} · ${esc(t.typ)}${t.ok === false ? ' (zamítnuto)' : ''} · usn. ${esc(t.us || '?')}${t.cena ? ' · ' + kc(t.cena) : ''} ${t.url ? `<a href="${esc(t.url)}" target="_blank" rel="noopener">zápis</a>` : (t.conf === 'videozáznam' ? '(podle videozáznamu)' : '')}</li>`).join('') + '</ul></div>';
+  if (tx.length) h += '<div style="margin-top:6px"><b>Usnesení:</b><ul style="padding-left:16px;margin:4px 0">' + tx.map(t => `<li>${czDate(t.d)} · ${esc(t.typ)}${t.ok === false ? ' (zamítnuto)' : ''} · usn. ${esc(t.us || '?')}${t.cena ? ' · ' + kc(t.cena) : ''} ${t.url ? `<a href="${esc(t.url)}" target="_blank" rel="noopener">${t.conf === 'videozáznam' ? 'záznam (YouTube)' : 'zápis'}</a>` : ''}</li>`).join('') + '</ul></div>';
   h += `<div class="small"><a href="https://nahlizenidokn.cuzk.gov.cz/ZobrazObjekt.aspx?typ=parcela&id=${p.id}" target="_blank" rel="noopener">nahlížení do katastru</a></div>`;
   L.popup().setLatLng(ll).setContent(h).openOn(map);
 }
