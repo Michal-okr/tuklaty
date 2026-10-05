@@ -421,6 +421,7 @@ const TERMS = [
 ];
 // Starší volební období – jen pro sekci Zastupitelstvo (zápisy z nich nejsou zveřejněné, údaje z volby.cz).
 const OLD_TERMS = [
+  { k: 'o1990', label: '1990–1994', from: 1991, to: 1994, term: '1990-1994', elect: '1990', d0: '1990-11-24', d1: '1994-11-18', old: true },
   { k: 'o1994', label: '1994–1998', from: 1995, to: 1998, term: '1994-1998', elect: '1994', d0: '1994-11-19', d1: '1998-11-13', old: true },
   { k: 'o1998', label: '1998–2002', from: 1999, to: 2002, term: '1998-2002', elect: '1998', d0: '1998-11-14', d1: '2002-10-31', old: true },
   { k: 'o2002', label: '2002–2006', from: 2003, to: 2006, term: '2002-2006', elect: '2002', d0: '2002-11-01', d1: '2006-10-20', old: true },
@@ -899,7 +900,7 @@ function renderZast() {
     SZ.kandidatky.filter(k => k.zvoleni.length).forEach(k => {
       const box = el('div', { style: 'padding:6px 0;border-top:1px solid var(--line)' });
       box.append(el('div', {}, el('b', { text: k.nazev }), el('span', { class: 'muted', text: ` · ${k.zvoleni.length} ${k.zvoleni.length === 1 ? 'mandát' : k.zvoleni.length < 5 ? 'mandáty' : 'mandátů'}` })));
-      box.append(el('div', { text: k.zvoleni.map(c => `${c.jmeno} (${NF.format(c.hlasy)} hl.)`).join(', ') }));
+      box.append(el('div', { text: k.zvoleni.map(c => c.hlasy != null ? `${c.jmeno} (${NF.format(c.hlasy)} hl.)` : `${c.jmeno}${c.funkce ? ' – ' + c.funkce : ''}`).join(', ') }));
       if (k.nahradnici.length) box.append(el('details', {}, el('summary', { class: 'small', text: `Náhradníci (${k.nahradnici.length})` }), el('div', { class: 'small ink2', text: k.nahradnici.sort((a, b) => a.poradi - b.poradi).map(c => `${c.poradi}. ${c.jmeno} (${NF.format(c.hlasy)} hl.)`).join(', ') })));
       sl.append(box);
     });
@@ -907,7 +908,8 @@ function renderZast() {
     if (!SZ.zmeny.length) ch.append(document.createTextNode(ZT && ZT.old ? 'nezjištěno (zápisy z tohoto období nejsou zveřejněné).' : 'žádné (podle zápisů ze zasedání).'));
     else ch.append(el('ul', { style: 'padding-left:18px;margin:4px 0' }, ...SZ.zmeny.map(z => el('li', {}, `${czDate(z.d)}: ${z.odchod} (${z.duvod}) → ${z.nastup}, ${z.nahr}. `, link(z.url, 'zápis')))));
     sl.append(ch);
-    sl.append(el('p', { class: 'small muted', style: 'margin:8px 0 0' }, 'Zdroj: ', link(SZ.zdroj, 'zvolení'), ' · ', link(SZ.zdrojNahr, 'náhradníci'), ' (volby.cz)'));
+    if (SZ.pozn) sl.append(el('p', { class: 'small ink2', style: 'margin:8px 0 0', text: SZ.pozn }));
+    sl.append(SZ.zdroj ? el('p', { class: 'small muted', style: 'margin:8px 0 0' }, 'Zdroj: ', link(SZ.zdroj, 'zvolení'), ' · ', link(SZ.zdrojNahr, 'náhradníci'), ' (volby.cz)', SZ.zdrojText && SZ.zdrojText.includes('Kronika') ? '; starosta: kronika obce, s. C-41' : '') : el('p', { class: 'small muted', style: 'margin:8px 0 0', text: 'Zdroj: ' + (SZ.zdrojText || '') }));
   }
   const mayor = D.demo.mayors; sl.append(el('details', {}, el('summary', { text: 'Starostové v čase' }), el('ul', { style: 'padding-left:18px' }, ...mayor.map(m => el('li', { text: `${m.term}: ${m.name || 'nezjištěno'}${m.note ? ' (' + m.note + ')' : ''}` })))));
   // volby
@@ -920,6 +922,7 @@ function renderZast() {
   const ek = (ALL_ZTERMS.find(t => t.term === sKey) || {}).elect || '2022';
   lineChart('ch-turn', { series: ser, scale: 1, yMin: 0, height: 220, yFmt: v => v + ' %', hl: tKey ? { from: +ek, to: +ek } : null });
   const E = D.demo.elections[ek]; const vb = $('#volby'); vb.replaceChildren();
+  if (!E && ek === '1990') vb.append(el('p', { class: 'small' }, el('b', { text: 'Obecní volby, listopad 1990' }), ' · výsledek OF 66 %, KSČ 33 % (kronika obce, s. C-29). Výsledky voleb 1990 volby.cz nezveřejňuje.'));
   if (E) {
     vb.append(el('p', { class: 'small' }, el('b', { text: `Volby ${ek}` }), ` · účast ${pct(E.turnout)}, voličů ${NF.format(E.voters)}`));
     if (E.lists.length) {
@@ -1268,9 +1271,10 @@ function renderSources() {
     ['ČSÚ – veřejná databáze, Historický lexikon obcí', 'https://vdb.czso.cz/'], ['Volby.cz', 'https://www.volby.cz/'],
     ['ČÚZK – RÚIAN (VFR), Nahlížení do KN', 'https://vdp.cuzk.gov.cz/'], ['ČÚZK – ortofoto a archivní ortofoto', 'https://geoportal.cuzk.gov.cz/'],
     ['DSO Český Brod – Doubravčice (svazková škola)', 'https://tybrdo.eu'],
+    ['Volby do zastupitelstev obcí 1994–2022, jmenné seznamy a náhradníci (volby.cz)', 'https://volby.gov.cz/'],
   ];
   (D.finance.sources || []).forEach(s => S0.push([s.label, s.url]));
-  $('#sources').replaceChildren(...S0.map(([t, u]) => el('li', {}, link(u, t))));
+  $('#sources').replaceChildren(...S0.map(([t, u]) => el('li', {}, link(u, t))), el('li', { text: 'Kronika obce Tuklaty, s. C-29 a C-41 a strana o volbách 1998 (fotografie stran poskytnuté místním pozorovatelem; kronika není online)' }));
 }
 
 /* ---------- boot ---------- */
