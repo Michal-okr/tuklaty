@@ -14,7 +14,7 @@ dokumenty, na které web odkazuje.
 - ČÚZK: RÚIAN, nahlížení do katastru, ortofoto a archivní ortofoto
 - Registr smluv, Hlídač státu (CEDR / IS ReD), profil zadavatele na e-zakazky.cz, SFDI
 - Záznamy zasedání zastupitelstva na YouTube kanálu obce
-- Kronika obce Tuklaty (období 1990–1998; fotografie stran poskytnuté místním pozorovatelem, kronika není online)
+- Kronika obce Tuklaty (období 1990–1998) a předávací protokol OÚ ze dne 3. 12. 1998 (fotografie poskytnuté místním pozorovatelem, dokumenty nejsou online)
 
 ## Licence podkladů
 

@@ -906,7 +906,7 @@ function renderZast() {
     });
     const ch = el('div', { style: 'padding-top:8px;border-top:1px solid var(--line)' }, el('b', { text: 'Změny během období: ' }));
     if (!SZ.zmeny.length) ch.append(document.createTextNode(ZT && ZT.old ? 'nezjištěno (zápisy z tohoto období nejsou zveřejněné).' : 'žádné (podle zápisů ze zasedání).'));
-    else ch.append(el('ul', { style: 'padding-left:18px;margin:4px 0' }, ...SZ.zmeny.map(z => el('li', {}, `${czDate(z.d)}: ${z.odchod} (${z.duvod}) → ${z.nastup}, ${z.nahr}. `, link(z.url, 'zápis')))));
+    else ch.append(el('ul', { style: 'padding-left:18px;margin:4px 0' }, ...SZ.zmeny.map(z => el('li', {}, `${z.d ? czDate(z.d) : 'během období'}: ${z.odchod} (${z.duvod}) → ${z.nastup}, ${z.nahr}. `, z.url ? link(z.url, 'zápis') : null))));
     sl.append(ch);
     if (SZ.pozn) sl.append(el('p', { class: 'small ink2', style: 'margin:8px 0 0', text: SZ.pozn }));
     sl.append(SZ.zdroj ? el('p', { class: 'small muted', style: 'margin:8px 0 0' }, 'Zdroj: ', link(SZ.zdroj, 'zvolení'), ' · ', link(SZ.zdrojNahr, 'náhradníci'), ' (volby.cz)', SZ.zdrojText && SZ.zdrojText.includes('Kronika') ? '; starosta: kronika obce, s. C-41' : '') : el('p', { class: 'small muted', style: 'margin:8px 0 0', text: 'Zdroj: ' + (SZ.zdrojText || '') }));
@@ -1274,7 +1274,7 @@ function renderSources() {
     ['Volby do zastupitelstev obcí 1994–2022, jmenné seznamy a náhradníci (volby.cz)', 'https://volby.gov.cz/'],
   ];
   (D.finance.sources || []).forEach(s => S0.push([s.label, s.url]));
-  $('#sources').replaceChildren(...S0.map(([t, u]) => el('li', {}, link(u, t))), el('li', { text: 'Kronika obce Tuklaty, s. C-29 a C-41 a strana o volbách 1998 (fotografie stran poskytnuté místním pozorovatelem; kronika není online)' }));
+  $('#sources').replaceChildren(...S0.map(([t, u]) => el('li', {}, link(u, t))), el('li', { text: 'Kronika obce Tuklaty, s. C-29 a C-41 a strana o volbách 1998; předávací protokol OÚ Tuklaty ze dne 3. 12. 1998 (fotografie poskytnuté místním pozorovatelem; dokumenty nejsou online)' }));
 }
 
 /* ---------- boot ---------- */
