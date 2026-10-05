@@ -349,7 +349,6 @@ footer{padding-block:30px 60px;color:var(--muted);font-size:13px;border-top:1px 
       <div class="flex small"><label for="rzSel" class="muted">Zastupitel</label><select id="rzSel"></select></div></div>
       <div class="tw tall"><table id="rzTable"></table></div></div>
     <div class="card span2"><h3>Komunální volby</h3><p class="sub">volební účast a rozdělení mandátů</p><div class="grid g2"><div><div class="legend" id="lg-turn"></div><div class="chart" id="ch-turn"></div></div><div id="volby"></div></div></div>
-    <div class="card span2"><h3>Starší volební období 1994–2010</h3><p class="sub">zvolení zastupitelé a náhradníci podle volby.cz; zápisy ze zasedání z těchto let nejsou zveřejněné</p><div id="starsi" class="grid g2"></div></div>
     <div class="card span2"><h3>Záznamy na YouTube</h3><p class="sub" id="yt-sub"></p><div class="grid g2"><div><div class="chart" id="ch-yt"></div></div><div><div class="chart" id="ch-ytv"></div></div></div></div>
     <div class="card span2"><h3>Zasedání ve vybraném období</h3><p class="sub">přítomnost podle zápisu; témata zkrácena; odkaz na zápis a záznam</p><div class="tw tall"><table id="zasTable"></table></div></div>
   </div>
@@ -420,6 +419,14 @@ const TERMS = [
   { k: 't2018', label: '2018–2022', from: 2019, to: 2022, term: '2018-2022', elect: '2018', d0: '2018-10-06', d1: '2022-09-23' },
   { k: 't2022', label: '2022–2026', from: 2023, to: 2026, term: '2022-2026', elect: '2022', d0: '2022-09-24', d1: '2026-10-09' },
 ];
+// Starší volební období – jen pro sekci Zastupitelstvo (zápisy z nich nejsou zveřejněné, údaje z volby.cz).
+const OLD_TERMS = [
+  { k: 'o1994', label: '1994–1998', from: 1995, to: 1998, term: '1994-1998', elect: '1994', d0: '1994-11-19', d1: '1998-11-13', old: true },
+  { k: 'o1998', label: '1998–2002', from: 1999, to: 2002, term: '1998-2002', elect: '1998', d0: '1998-11-14', d1: '2002-10-31', old: true },
+  { k: 'o2002', label: '2002–2006', from: 2003, to: 2006, term: '2002-2006', elect: '2002', d0: '2002-11-01', d1: '2006-10-20', old: true },
+  { ...TERMS[0], old: true },
+];
+const ALL_ZTERMS = [...OLD_TERMS, ...TERMS.slice(1)];
 const PERIODS = [{ k: 'all', label: 'Celá historie' }, ...TERMS.slice(1), { k: 'custom', label: 'Vlastní' }];
 const S = { p: 'all', from: 2010, to: 2026, zt: '2022-2026' };
 try { const s = JSON.parse(localStorage.getItem('tk-period') || 'null'); if (s && s.p) Object.assign(S, s); } catch (e) { }
@@ -832,17 +839,24 @@ function renderZast() {
   const R0 = range();
   if (R0.term) S.zt = R0.term; else if (S._lastP !== S.p) S.zt = 'all';
   S._lastP = S.p;
-  const zAll = S.zt === 'all' || !TERMS.some(t => t.term === S.zt);
-  const ZT = zAll ? null : TERMS.find(t => t.term === S.zt);
+  const zAll = S.zt === 'all' || !ALL_ZTERMS.some(t => t.term === S.zt);
+  const ZT = zAll ? null : ALL_ZTERMS.find(t => t.term === S.zt);
   const R = zAll ? R0 : { ...ZT, label: 'volební období ' + ZT.label };
   const tKey = zAll ? null : S.zt;
   const zseg = $('#zt-seg'); zseg.replaceChildren();
-  [{ v: 'all', label: R0.custom ? `Roky ${R0.label}` : 'Celá historie' }, ...TERMS.slice(1).map(t => ({ v: t.term, k: t.k, label: t.label + (t.k === 't2022' ? ' (nyní)' : '') }))].forEach(o => {
+  const mk = o => {
     const btn = el('button', { type: 'button', 'aria-pressed': (zAll ? 'all' : tKey) === o.v ? 'true' : 'false', text: o.label });
-    btn.addEventListener('click', () => { S.zt = o.v; if (R0.term) { S.p = o.v === 'all' ? 'all' : o.k; S._lastP = S.p; } save(); renderAll(); });
-    zseg.append(btn);
-  });
-  $('#zt-note').textContent = R0.term ? 'Shoduje se s obdobím vybraným nahoře.' : (zAll ? 'Platí pro celou sekci. Absence a hlasování jsou sečtené přes všechna období.' : 'Platí pro celou sekci Zastupitelstvo; ostatní sekce ukazují ' + R0.label + '.');
+    btn.addEventListener('click', () => {
+      S.zt = o.v;
+      if (R0.term) { S.p = o.v === 'all' || o.old ? 'all' : o.k; S._lastP = S.p; }
+      save(); renderAll();
+    });
+    return btn;
+  };
+  [{ v: 'all', label: R0.custom ? `Roky ${R0.label}` : 'Celá historie' }, ...TERMS.slice(1).map(t => ({ v: t.term, k: t.k, label: t.label + (t.k === 't2022' ? ' (nyní)' : '') }))].forEach(o => zseg.append(mk(o)));
+  zseg.append(el('span', { class: 'small muted', style: 'align-self:center;margin:0 2px 0 8px', text: 'starší (jen volby):' }));
+  OLD_TERMS.forEach(t => zseg.append(mk({ v: t.term, k: t.k, old: true, label: t.label })));
+  $('#zt-note').textContent = ZT && ZT.old ? 'Z tohoto období nejsou zveřejněné zápisy ze zasedání; zobrazeni jsou zvolení zastupitelé, náhradníci a výsledky voleb z volby.cz.' : R0.term ? 'Shoduje se s obdobím vybraným nahoře.' : (zAll ? 'Platí pro celou sekci. Absence a hlasování jsou sečtené přes všechna období.' : 'Platí pro celou sekci Zastupitelstvo; ostatní sekce ukazují ' + R0.label + '.');
   const zs = D.zasedani.filter(z => inDate(z.d, R));
   const zp = zs.filter(z => z.p != null);
   const att = zp.length ? zp.reduce((a, z) => a + z.p / z.n, 0) / zp.length * 100 : null;
@@ -871,12 +885,12 @@ function renderZast() {
   } else $('#absence').replaceChildren();
   // hlasování po zastupitelích
   renderHlasovani(tKey);
-  renderStarsi();
   // slozeni
   const sKey = tKey || '2022-2026';
   const T = D.terms[sKey]; const sl = $('#slozeni'); sl.replaceChildren();
   const SZ = (D.slozeni || {})[sKey];
   $('#slozeni-sub').textContent = (tKey ? 'Období ' : 'Současné zastupitelstvo, období ') + sKey.replace('-', '–') + (SZ ? ` · volby ${SZ.volby} (volby.cz)` : '') + (tKey ? '' : '; starší období vyberete přepínačem v sekci');
+  if (!T && SZ && SZ.starosta) sl.append(el('p', { style: 'margin:0 0 8px' }, el('b', { text: 'Starosta: ' }), SZ.starosta.jmeno || 'nezjištěno', el('span', { class: 'muted', text: ` (${SZ.starosta.zdroj})` })));
   if (T) {
     if (T.starosta) sl.append(el('p', { style: 'margin:0 0 4px' }, el('b', { text: 'Starosta/ka: ' }), T.starosta));
     if (T.mistostarosta) sl.append(el('p', { style: 'margin:0 0 8px' }, el('b', { text: 'Místostarosta/ka: ' }), T.mistostarosta));
@@ -890,7 +904,7 @@ function renderZast() {
       sl.append(box);
     });
     const ch = el('div', { style: 'padding-top:8px;border-top:1px solid var(--line)' }, el('b', { text: 'Změny během období: ' }));
-    if (!SZ.zmeny.length) ch.append(document.createTextNode('žádné (podle zápisů ze zasedání).'));
+    if (!SZ.zmeny.length) ch.append(document.createTextNode(ZT && ZT.old ? 'nezjištěno (zápisy z tohoto období nejsou zveřejněné).' : 'žádné (podle zápisů ze zasedání).'));
     else ch.append(el('ul', { style: 'padding-left:18px;margin:4px 0' }, ...SZ.zmeny.map(z => el('li', {}, `${czDate(z.d)}: ${z.odchod} (${z.duvod}) → ${z.nastup}, ${z.nahr}. `, link(z.url, 'zápis')))));
     sl.append(ch);
     sl.append(el('p', { class: 'small muted', style: 'margin:8px 0 0' }, 'Zdroj: ', link(SZ.zdroj, 'zvolení'), ' · ', link(SZ.zdrojNahr, 'náhradníci'), ' (volby.cz)'));
@@ -903,15 +917,23 @@ function renderZast() {
   const toPts = o => o ? Object.entries(o).map(([k, v]) => [+String(k).slice(0, 4), typeof v === 'object' ? (v.turnout ?? v.ucast ?? v.kolo1 ?? null) : v]).filter(p => p[1] != null && !isNaN(p[0])) : [];
   const sn = toPts(ot.snemovna); if (sn.length) ser.push({ label: 'Sněmovna', color: '--s2', pts: sn, scale: 1, fmt: v => pct(v), dots: true });
   legend('lg-turn', ser.map(s => ({ label: s.label, color: s.color, line: true })));
-  const ek = (TERMS.find(t => t.term === sKey) || {}).elect || '2022';
+  const ek = (ALL_ZTERMS.find(t => t.term === sKey) || {}).elect || '2022';
   lineChart('ch-turn', { series: ser, scale: 1, yMin: 0, height: 220, yFmt: v => v + ' %', hl: tKey ? { from: +ek, to: +ek } : null });
   const E = D.demo.elections[ek]; const vb = $('#volby'); vb.replaceChildren();
   if (E) {
     vb.append(el('p', { class: 'small' }, el('b', { text: `Volby ${ek}` }), ` · účast ${pct(E.turnout)}, voličů ${NF.format(E.voters)}`));
     if (E.lists.length) {
-      const rows = E.lists.sort((a, b) => (b.m || 0) - (a.m || 0) || (b.votes || 0) - (a.votes || 0)).map(l => ({ c: [l.name, (l.pctValid ?? l.pct) != null ? pct(l.pctValid ?? l.pct) : '–', String(l.m ?? 0), l.c.filter(c => c.e).map(c => c.n).join(', ') || '–'] }));
+      const indep = E.lists.length > 3 && E.lists.every(l => (l.c || []).length <= 1);
+      const rows = E.lists.sort((a, b) => (b.m || 0) - (a.m || 0) || (b.votes || 0) - (a.votes || 0)).map(l => ({ c: [l.name, indep || l.pctValid == null && (l.pct || 0) > 100 ? NF.format(l.votes || 0) : (l.pctValid ?? l.pct) != null ? pct(l.pctValid ?? l.pct) : '–', String(l.m ?? 0), l.c.filter(c => c.e).map(c => c.n).join(', ') || '–'] }));
       const t = el('table', { id: 'volbyT' }); vb.append(el('div', { class: 'tw' }, t)); table('volbyT', ['Kandidátka', { t: 'Hlasy', r: 1 }, { t: 'Mandáty', r: 1 }, 'Zvolení'], rows);
-    } else vb.append(el('p', { class: 'small muted', text: E.note || 'Bez podrobných výsledků.' }));
+    } else {
+      const SZe = Object.values(D.slozeni || {}).find(x => x.volby === ek);
+      if (SZe) {
+        const t = el('table', { id: 'volbyT' }); vb.append(el('div', { class: 'tw' }, t));
+        table('volbyT', ['Kandidátka', { t: 'Mandáty', r: 1 }, 'Zvolení (hlasy)'], SZe.kandidatky.filter(k => k.zvoleni.length).map(k => ({ c: [k.nazev, String(k.zvoleni.length), k.zvoleni.map(z => `${z.jmeno} (${NF.format(z.hlasy)})`).join(', ')] })));
+        vb.append(el('p', { class: 'small muted', text: 'Podíly hlasů kandidátek za tento rok volby.cz v otevřených datech neuvádí; jmenovité výsledky jsou z jmenných seznamů volby.cz.' }));
+      } else vb.append(el('p', { class: 'small muted', text: E.note || 'Bez podrobných výsledků.' }));
+    }
   }
   // youtube
   const yv = D.youtube.stats.per_year; const yy = Object.keys(yv).sort();
