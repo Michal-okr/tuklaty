@@ -853,13 +853,25 @@ function renderZast() {
   renderHlasovani(tKey);
   // slozeni
   const T = D.terms[tKey]; const sl = $('#slozeni'); sl.replaceChildren();
-  $('#slozeni-sub').textContent = 'Období ' + tKey.replace('-', '–');
+  const SZ = (D.slozeni || {})[tKey];
+  $('#slozeni-sub').textContent = 'Období ' + tKey.replace('-', '–') + (SZ ? ` · volby ${SZ.volby} (volby.cz)` : '');
   if (T) {
-    if (T.starosta) sl.append(el('p', {}, el('b', { text: 'Starosta/ka: ' }), T.starosta));
-    if (T.mistostarosta) sl.append(el('p', {}, el('b', { text: 'Místostarosta/ka: ' }), T.mistostarosta));
-    const ms = memberNames(tKey); if (ms.length) sl.append(el('p', {}, el('b', { text: 'Členové: ' }), ms.join(', ')));
-    if (T.uskupeni_inferred) Object.entries(T.uskupeni_inferred).forEach(([k, v]) => { if (Array.isArray(v)) sl.append(el('p', {}, el('b', { text: k + ': ' }), v.join(', '))); });
-    if (T.zmeny) sl.append(el('p', { class: 'muted', text: 'Změny: ' + (Array.isArray(T.zmeny) ? T.zmeny.map(x => typeof x === 'string' ? x : Object.values(x).join(' ')).join('; ') : T.zmeny) }));
+    if (T.starosta) sl.append(el('p', { style: 'margin:0 0 4px' }, el('b', { text: 'Starosta/ka: ' }), T.starosta));
+    if (T.mistostarosta) sl.append(el('p', { style: 'margin:0 0 8px' }, el('b', { text: 'Místostarosta/ka: ' }), T.mistostarosta));
+  }
+  if (SZ) {
+    SZ.kandidatky.filter(k => k.zvoleni.length).forEach(k => {
+      const box = el('div', { style: 'padding:6px 0;border-top:1px solid var(--line)' });
+      box.append(el('div', {}, el('b', { text: k.nazev }), el('span', { class: 'muted', text: ` · ${k.zvoleni.length} ${k.zvoleni.length === 1 ? 'mandát' : k.zvoleni.length < 5 ? 'mandáty' : 'mandátů'}` })));
+      box.append(el('div', { text: k.zvoleni.map(c => `${c.jmeno} (${NF.format(c.hlasy)} hl.)`).join(', ') }));
+      if (k.nahradnici.length) box.append(el('details', {}, el('summary', { class: 'small', text: `Náhradníci (${k.nahradnici.length})` }), el('div', { class: 'small ink2', text: k.nahradnici.sort((a, b) => a.poradi - b.poradi).map(c => `${c.poradi}. ${c.jmeno} (${NF.format(c.hlasy)} hl.)`).join(', ') })));
+      sl.append(box);
+    });
+    const ch = el('div', { style: 'padding-top:8px;border-top:1px solid var(--line)' }, el('b', { text: 'Změny během období: ' }));
+    if (!SZ.zmeny.length) ch.append(document.createTextNode('žádné (podle zápisů ze zasedání).'));
+    else ch.append(el('ul', { style: 'padding-left:18px;margin:4px 0' }, ...SZ.zmeny.map(z => el('li', {}, `${czDate(z.d)}: ${z.odchod} (${z.duvod}) → ${z.nastup}, ${z.nahr}. `, link(z.url, 'zápis')))));
+    sl.append(ch);
+    sl.append(el('p', { class: 'small muted', style: 'margin:8px 0 0' }, 'Zdroj: ', link(SZ.zdroj, 'zvolení'), ' · ', link(SZ.zdrojNahr, 'náhradníci'), ' (volby.cz)'));
   }
   const mayor = D.demo.mayors; sl.append(el('details', {}, el('summary', { text: 'Starostové v čase' }), el('ul', { style: 'padding-left:18px' }, ...mayor.map(m => el('li', { text: `${m.term}: ${m.name || 'nezjištěno'}${m.note ? ' (' + m.note + ')' : ''}` })))));
   // volby
