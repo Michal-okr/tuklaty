@@ -388,7 +388,7 @@ footer{padding-block:30px 60px;color:var(--muted);font-size:13px;border-top:1px 
 </div></section>
 </main>
 
-<footer><div class="wrap">Neoficiální přehled sestavený z veřejně dostupných dat, stav k 6. 10. 2026. Nejde o oficiální výstup obce Tuklaty ani o výpis z jejích účtů; závazné jsou původní dokumenty, na které vedou odkazy. Mapové podklady a ortofoto © ČÚZK (CC BY 4.0).</div></footer>
+<footer><div class="wrap">Neoficiální přehled sestavený z veřejně dostupných dat, stav k 11. 10. 2026. Nejde o oficiální výstup obce Tuklaty ani o výpis z jejích účtů; závazné jsou původní dokumenty, na které vedou odkazy. Mapové podklady a ortofoto © ČÚZK (CC BY 4.0).</div></footer>
 <div id="tip" role="tooltip"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -427,7 +427,9 @@ const OLD_TERMS = [
   { k: 'o2002', label: '2002–2006', from: 2003, to: 2006, term: '2002-2006', elect: '2002', d0: '2002-11-01', d1: '2006-10-20', old: true },
   { ...TERMS[0], old: true },
 ];
-const ALL_ZTERMS = [...OLD_TERMS, ...TERMS.slice(1)];
+// Nově zvolené zastupitelstvo (volby 9.–10. 10. 2026) – jen pro sekci Zastupitelstvo, zasedání zatím nejsou.
+const NEW_TERM = { k: 'n2026', label: '2026–2030', from: 2027, to: 2030, term: '2026-2030', elect: '2026', d0: '2026-10-10', d1: '2030-10-31', fresh: true };
+const ALL_ZTERMS = [...OLD_TERMS, ...TERMS.slice(1), NEW_TERM];
 const PERIODS = [{ k: 'all', label: 'Celá historie' }, ...TERMS.slice(1), { k: 'custom', label: 'Vlastní' }];
 const S = { p: 'all', from: 2010, to: 2026, zt: '2022-2026' };
 try { const s = JSON.parse(localStorage.getItem('tk-period') || 'null'); if (s && s.p) Object.assign(S, s); } catch (e) { }
@@ -623,7 +625,7 @@ function save() { try { localStorage.setItem('tk-period', JSON.stringify(S)); } 
 function renderFacts() {
   const f = D.demo.facts;
   const pop = D.demo.population['2025'];
-  const items = [['Obyvatel (31. 12. 2025)', NF.format(pop)], ['Rozloha', '816,6 ha'], ['IČO', f.ico], ['Kód obce', f.kod_obce], ['Starostka', 'Monika Petrisková'], ['Volby do ZO', '9.–10. 10. 2026']];
+  const items = [['Obyvatel (31. 12. 2025)', NF.format(pop)], ['Rozloha', '816,6 ha'], ['IČO', f.ico], ['Kód obce', f.kod_obce], ['Starostka', 'Monika Petrisková (do ustavujícího zasedání 2. 11. 2026)'], ['Volby do ZO 9.–10. 10. 2026', 'účast 38,3 %, jediná kandidátka']];
   $('#facts').replaceChildren(...items.map(([a, b]) => el('span', {}, a + ': ', el('b', { text: b }))));
 }
 function renderHero() {
@@ -849,15 +851,15 @@ function renderZast() {
     const btn = el('button', { type: 'button', 'aria-pressed': (zAll ? 'all' : tKey) === o.v ? 'true' : 'false', text: o.label });
     btn.addEventListener('click', () => {
       S.zt = o.v;
-      if (R0.term) { S.p = o.v === 'all' || o.old ? 'all' : o.k; S._lastP = S.p; }
+      if (R0.term) { S.p = o.v === 'all' || o.old || o.fresh ? 'all' : o.k; S._lastP = S.p; }
       save(); renderAll();
     });
     return btn;
   };
-  [{ v: 'all', label: R0.custom ? `Roky ${R0.label}` : 'Celá historie' }, ...TERMS.slice(1).map(t => ({ v: t.term, k: t.k, label: t.label + (t.k === 't2022' ? ' (nyní)' : '') }))].forEach(o => zseg.append(mk(o)));
+  [{ v: 'all', label: R0.custom ? `Roky ${R0.label}` : 'Celá historie' }, ...TERMS.slice(1).map(t => ({ v: t.term, k: t.k, label: t.label })), { v: NEW_TERM.term, k: NEW_TERM.k, fresh: true, label: NEW_TERM.label + ' (nově zvolené)' }].forEach(o => zseg.append(mk(o)));
   zseg.append(el('span', { class: 'small muted', style: 'align-self:center;margin:0 2px 0 8px', text: 'starší (jen volby):' }));
   OLD_TERMS.forEach(t => zseg.append(mk({ v: t.term, k: t.k, old: true, label: t.label })));
-  $('#zt-note').textContent = ZT && ZT.old ? 'Z tohoto období nejsou zveřejněné zápisy ze zasedání; zobrazeni jsou zvolení zastupitelé, náhradníci a výsledky voleb z volby.cz.' : R0.term ? 'Shoduje se s obdobím vybraným nahoře.' : (zAll ? 'Platí pro celou sekci. Absence a hlasování jsou sečtené přes všechna období.' : 'Platí pro celou sekci Zastupitelstvo; ostatní sekce ukazují ' + R0.label + '.');
+  $('#zt-note').textContent = ZT && ZT.fresh ? 'Zastupitelstvo zvolené 9.–10. 10. 2026. Zatím se nesešlo; ustavující zasedání se očekává v pondělí 2. 11. 2026.' : ZT && ZT.old ? 'Z tohoto období nejsou zveřejněné zápisy ze zasedání; zobrazeni jsou zvolení zastupitelé, náhradníci a výsledky voleb z volby.cz.' : R0.term ? 'Shoduje se s obdobím vybraným nahoře.' : (zAll ? 'Platí pro celou sekci. Absence a hlasování jsou sečtené přes všechna období.' : 'Platí pro celou sekci Zastupitelstvo; ostatní sekce ukazují ' + R0.label + '.');
   const zs = D.zasedani.filter(z => inDate(z.d, R));
   const zp = zs.filter(z => z.p != null);
   const att = zp.length ? zp.reduce((a, z) => a + z.p / z.n, 0) / zp.length * 100 : null;
@@ -887,10 +889,10 @@ function renderZast() {
   // hlasování po zastupitelích
   renderHlasovani(tKey);
   // slozeni
-  const sKey = tKey || '2022-2026';
+  const sKey = tKey || NEW_TERM.term;
   const T = D.terms[sKey]; const sl = $('#slozeni'); sl.replaceChildren();
   const SZ = (D.slozeni || {})[sKey];
-  $('#slozeni-sub').textContent = (tKey ? 'Období ' : 'Současné zastupitelstvo, období ') + sKey.replace('-', '–') + (SZ ? ` · volby ${SZ.volby} (volby.cz)` : '') + (tKey ? '' : '; starší období vyberete přepínačem v sekci');
+  $('#slozeni-sub').textContent = (tKey ? 'Období ' : 'Nově zvolené zastupitelstvo, období ') + sKey.replace('-', '–') + (SZ ? ` · volby ${SZ.volby} (volby.cz)` : '') + (tKey ? '' : '; starší období vyberete přepínačem v sekci');
   if (!T && SZ && SZ.starosta) sl.append(el('p', { style: 'margin:0 0 8px' }, el('b', { text: 'Starosta: ' }), SZ.starosta.jmeno || 'nezjištěno', el('span', { class: 'muted', text: ` (${SZ.starosta.zdroj})` })));
   if (T) {
     if (T.starosta) sl.append(el('p', { style: 'margin:0 0 4px' }, el('b', { text: 'Starosta/ka: ' }), T.starosta));
@@ -905,11 +907,11 @@ function renderZast() {
       sl.append(box);
     });
     const ch = el('div', { style: 'padding-top:8px;border-top:1px solid var(--line)' }, el('b', { text: 'Změny během období: ' }));
-    if (!SZ.zmeny.length) ch.append(document.createTextNode(ZT && ZT.old ? 'nezjištěno (zápisy z tohoto období nejsou zveřejněné).' : 'žádné (podle zápisů ze zasedání).'));
+    if (!SZ.zmeny.length) ch.append(document.createTextNode(ZT && ZT.old ? 'nezjištěno (zápisy z tohoto období nejsou zveřejněné).' : !ZT || ZT.fresh ? 'zatím žádné.' : 'žádné (podle zápisů ze zasedání).'));
     else ch.append(el('ul', { style: 'padding-left:18px;margin:4px 0' }, ...SZ.zmeny.map(z => el('li', {}, `${z.d ? czDate(z.d) : 'během období'}: ${z.odchod} (${z.duvod}) → ${z.nastup}, ${z.nahr}. `, z.url ? link(z.url, 'zápis') : null))));
     sl.append(ch);
     if (SZ.pozn) sl.append(el('p', { class: 'small ink2', style: 'margin:8px 0 0', text: SZ.pozn }));
-    sl.append(SZ.zdroj ? el('p', { class: 'small muted', style: 'margin:8px 0 0' }, 'Zdroj: ', link(SZ.zdroj, 'zvolení'), ' · ', link(SZ.zdrojNahr, 'náhradníci'), ' (volby.cz)', SZ.zdrojText && SZ.zdrojText.includes('Kronika') ? '; starosta: kronika obce, s. C-41' : '') : el('p', { class: 'small muted', style: 'margin:8px 0 0', text: 'Zdroj: ' + (SZ.zdrojText || '') }));
+    sl.append(SZ.zdroj ? el('p', { class: 'small muted', style: 'margin:8px 0 0' }, 'Zdroj: ', ...(SZ.zdrojNahr ? [link(SZ.zdroj, 'zvolení'), ' · ', link(SZ.zdrojNahr, 'náhradníci'), ' (volby.cz)'] : [link(SZ.zdroj, 'výsledky voleb'), ' (otevřená data volby.cz)']), SZ.zdrojText && SZ.zdrojText.includes('Kronika') ? '; starosta: kronika obce, s. C-41' : '') : el('p', { class: 'small muted', style: 'margin:8px 0 0', text: 'Zdroj: ' + (SZ.zdrojText || '') }));
   }
   const mayor = D.demo.mayors; sl.append(el('details', {}, el('summary', { text: 'Starostové v čase' }), el('ul', { style: 'padding-left:18px' }, ...mayor.map(m => el('li', { text: `${m.term}: ${m.name || 'nezjištěno'}${m.note ? ' (' + m.note + ')' : ''}` })))));
   // volby
@@ -929,6 +931,7 @@ function renderZast() {
       const indep = E.lists.length > 3 && E.lists.every(l => (l.c || []).length <= 1);
       const rows = E.lists.sort((a, b) => (b.m || 0) - (a.m || 0) || (b.votes || 0) - (a.votes || 0)).map(l => ({ c: [l.name, indep || l.pctValid == null && (l.pct || 0) > 100 ? NF.format(l.votes || 0) : (l.pctValid ?? l.pct) != null ? pct(l.pctValid ?? l.pct) : '–', String(l.m ?? 0), l.c.filter(c => c.e).map(c => c.n).join(', ') || '–'] }));
       const t = el('table', { id: 'volbyT' }); vb.append(el('div', { class: 'tw' }, t)); table('volbyT', ['Kandidátka', { t: 'Hlasy', r: 1 }, { t: 'Mandáty', r: 1 }, 'Zvolení'], rows);
+      if (E.note) vb.append(el('p', { class: 'small muted', text: E.note }));
     } else {
       const SZe = Object.values(D.slozeni || {}).find(x => x.volby === ek);
       if (SZe) {
@@ -1259,7 +1262,7 @@ function renderSources() {
     'Zápisy 3, 5 a 6/2012, 5/2013, 9/2017.',
     'Výše úvěrových rámců České spořitelny na dětskou skupinu a tělocvičnu nejsou zveřejněné.',
     'Původ dlouhodobého závazku 4 mil. Kč na účtu 459 (od 2023) se nepodařilo ověřit.',
-    'Výsledky voleb 9.–10. 10. 2026 v době sestavení neexistují.',
+    'Starostu pro období 2026–2030 zvolí až ustavující zasedání nového zastupitelstva (očekává se 2. 11. 2026).',
     'Dokončené byty za rok 2025 po obcích: ČSÚ ukončil sadu „Dokončené byty v obcích“ (poslední vydání 1997–2024) a v databázi MOS zatím rok 2025 pro obce není.',
   ].map(t => el('li', { text: t })));
   const S0 = [
